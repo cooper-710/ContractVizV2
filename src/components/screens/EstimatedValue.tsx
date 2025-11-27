@@ -567,18 +567,32 @@ export function EstimatedValue({ player, comps, onContinue, onBack }: EstimatedV
     let weightedSum = 0;
     let totalWeight = 0;
     
-    const statImpacts = statComparisons.map((comp) => {
+    // First pass: accumulate weights and calculate contributions
+    const statContributions = statComparisons.map((comp) => {
       const contribution = (comp.ratio - 1) * comp.weight;
       weightedSum += comp.ratio * comp.weight;
       totalWeight += comp.weight;
       
-      // Calculate impact on AAV (this stat's contribution to the multiplier)
-      const statMultiplier = 1 + (contribution / totalWeight);
-      const aavImpact = baselineAAV * contribution / totalWeight;
-      
       return {
         ...comp,
         contribution,
+      };
+    });
+    
+    // Second pass: calculate AAV impacts using the FINAL totalWeight (all metrics use same denominator)
+    const statImpacts = statContributions.map((comp) => {
+      // Calculate impact on AAV (this stat's contribution to the multiplier)
+      // Using final totalWeight ensures all stats are calculated consistently
+      // 
+      // Sign logic:
+      // - If ratio > 1 (player better than cohort): contribution > 0 → aavImpact > 0 (increases AAV)
+      // - If ratio < 1 (player worse than cohort): contribution < 0 → aavImpact < 0 (decreases AAV)
+      // - If ratio = 1 (player matches cohort): contribution = 0 → aavImpact = 0 (no change)
+      const statMultiplier = 1 + (comp.contribution / totalWeight);
+      const aavImpact = baselineAAV * comp.contribution / totalWeight;
+      
+      return {
+        ...comp,
         aavImpact,
       };
     });
